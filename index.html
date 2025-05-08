@@ -1,62 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Safe Redirect Link Generator</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Proxy Browser</title>
   <style>
-    body {
+    html, body {
+      margin: 0; padding: 0; height: 100%;
       font-family: sans-serif;
-      padding: 20px;
-      background: #f8f9fa;
+      display: flex; flex-direction: column;
     }
-    input, button {
+    .bar {
       padding: 10px;
+      background: #f0f0f0;
+      display: flex;
+      gap: 10px;
+    }
+    input {
+      flex: 1;
+      padding: 12px;
       font-size: 16px;
-      width: 100%;
-      margin-top: 10px;
-      border-radius: 6px;
       border: 1px solid #ccc;
+      border-radius: 4px;
     }
     button {
-      background-color: #007bff;
+      padding: 12px 16px;
+      font-size: 16px;
+      background: #007bff;
       color: white;
       border: none;
+      border-radius: 4px;
     }
-    .output {
-      margin-top: 20px;
-      word-break: break-all;
-      background: #fff;
-      padding: 15px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+    iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
     }
   </style>
 </head>
 <body>
 
-<h2>Generate Safe Redirect Link</h2>
+<div class="bar">
+  <input type="text" id="urlInput" placeholder="https://example.com">
+  <button onclick="load()">Go</button>
+</div>
 
-<input type="text" id="url" placeholder="Enter full URL (e.g. https://example.com)">
-<button onclick="generate()">Generate Redirect Link</button>
+<iframe id="viewer" src="about:blank"></iframe>
 
-<div class="output" id="result"></div>
-
+<script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
 <script>
-function generate() {
-  const input = document.getElementById('url').value.trim();
-  if (!/^https?:\/\//i.test(input)) {
-    alert('Please enter a valid full URL starting with http:// or https://');
-    return;
-  }
+  const secretKey = "MySecretKey123"; // Must match PHP key
 
-  const encoded = btoa(input);
-  const redirectUrl = `https://empty-silence-1b09.localhitsf.workers.dev/?url=${encoded}`;
-  document.getElementById('result').innerHTML = `
-    <strong>Redirect Link:</strong><br>
-    <a href="${redirectUrl}" target="_blank">${redirectUrl}</a>
-  `;
-}
+  function load() {
+    const url = document.getElementById("urlInput").value.trim();
+    if (!/^https?:\/\//.test(url)) {
+      alert("Enter a valid full URL");
+      return;
+    }
+
+    const key = CryptoJS.enc.Utf8.parse(secretKey);
+    const encrypted = CryptoJS.AES.encrypt(url, key, {
+      mode: CryptoJS.mode.ECB,
+      padding: CryptoJS.pad.Pkcs7
+    });
+    const base64 = CryptoJS.enc.Base64.stringify(encrypted.ciphertext);
+    document.getElementById("viewer").src = `relay.php?q=${encodeURIComponent(base64)}`;
+  }
 </script>
 
 </body>
