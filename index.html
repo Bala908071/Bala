@@ -2,117 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Safe Redirect Link Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mini TV Box Browser</title>
   <style>
-    body {
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
       font-family: sans-serif;
-      padding: 20px;
-      background: #f8f9fa;
+      background-color: #ffffff;
+      display: flex;
+      flex-direction: column;
     }
-    input, button {
+    .browser-bar {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+      background: #f0f0f0;
+    }
+    input[type="text"] {
+      flex: 1;
       padding: 10px;
       font-size: 16px;
-      width: 100%;
-      margin-top: 10px;
-      border-radius: 6px;
       border: 1px solid #ccc;
-      box-sizing: border-box;
+      border-radius: 4px;
+      outline: none;
     }
     button {
+      padding: 10px 20px;
+      font-size: 16px;
       background-color: #007bff;
       color: white;
       border: none;
+      border-radius: 4px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .output {
-      margin-top: 20px;
-      word-break: break-all;
-      background: #fff;
-      padding: 15px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    .error {
-      color: red;
-      margin-top: 10px;
-    }
-    .copy-btn {
-      background-color: #28a745;
-      margin-top: 10px;
-    }
-    .copy-btn:hover {
-      background-color: #218838;
+    button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
     }
     iframe {
-      display: none; /* Hide iframe for silent redirect */
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      font-size: 16px;
+      color: #333;
     }
   </style>
 </head>
 <body>
-  <h2>Generate Safe Redirect Link</h2>
-  <input type="text" id="url" placeholder="Enter full URL (e.g., https://example.com)">
-  <button onclick="generate()">Generate Redirect Link</button>
-  <div class="output" id="result"></div>
-  <div class="error" id="error"></div>
-  <iframe id="redirectFrame"></iframe>
 
-  <script>
-    const WORKER_URL = "https://empty-silence-1b09.localhitsf.workers.dev"; // Update if different
+<form id="browser-form">
+  <div class="browser-bar">
+    <input type="text" id="query" placeholder="Enter URL or Search">
+    <button type="submit" id="go-button">Go</button>
+  </div>
+</form>
 
-    function generate() {
-      const resultDiv = document.getElementById("result");
-      const errorDiv = document.getElementById("error");
-      const redirectFrame = document.getElementById("redirectFrame");
-      resultDiv.innerHTML = "";
-      errorDiv.innerHTML = "";
-      redirectFrame.src = "";
+<div id="loading" class="loading">Loading...</div>
+<iframe id="content-frame" src="about:blank" allow="scripts; same-origin" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
 
-      const input = document.getElementById("url").value.trim();
-      if (!input) {
-        errorDiv.textContent = "Please enter a URL.";
-        return;
-      }
+<script>
+  const form = document.getElementById('browser-form');
+  const queryInput = document.getElementById('query');
+  const goButton = document.getElementById('go-button');
+  const frame = document.getElementById('content-frame');
+  const loading = document.getElementById('loading');
 
-      if (!/^https?:\/\/.+/i.test(input)) {
-        errorDiv.textContent = "Please enter a valid URL starting with http:// or https://";
-        return;
+  form.addEventListener('submit', function(event) {
+    event.preventDefault();
+    let query = queryInput.value.trim();
+
+    if (query) {
+      // Disable button and show loading
+      goButton.disabled = true;
+      loading.style.display = 'block';
+
+      // Add protocol if missing
+      if (!/^https?:\/\//i.test(query)) {
+        query = 'https://' + query;
       }
 
       try {
-        const encoded = btoa(input);
-        const redirectUrl = `${WORKER_URL}/?url=${encodeURIComponent(encoded)}`;
-        console.log("Generated URL:", redirectUrl); // Debug
+        const url = new URL(query);
 
-        // Silent redirect via iframe
-        redirectFrame.src = redirectUrl;
-
-        // Fallback for browsers (visible link)
-        resultDiv.innerHTML = `
-          <strong>Redirect Link (Auto-redirecting...):</strong><br>
-          <a href="${redirectUrl}" target="_blank">${redirectUrl}</a><br>
-          <button class="copy-btn" onclick="copyToClipboard('${redirectUrl}')">Copy Link</button>
-        `;
-
-        // Optional: Direct window redirect (uncomment if iframe doesn't work)
-        // setTimeout(() => { window.location.href = redirectUrl; }, 500);
-      } catch (error) {
-        errorDiv.textContent = "Error encoding URL: " + error.message;
-        console.error("Encoding error:", error);
+        // Only allow http(s) URLs to be loaded
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          // Update iframe source
+          frame.src = url.href;
+          // Re-enable button and hide loading after iframe loads
+          frame.addEventListener('load', () => {
+            goButton.disabled = false;
+            loading.style.display = 'none';
+          }, { once: true });
+        } else {
+          alert('Only HTTP and HTTPS URLs are supported.');
+          goButton.disabled = false;
+          loading.style.display = 'none';
+        }
+      } catch (e) {
+        // If invalid URL, do a Google search
+        frame.src = 'https://www.google.com/search?q=' + encodeURIComponent(queryInput.value.trim());
+        frame.addEventListener('load', () => {
+          goButton.disabled = false;
+          loading.style.display = 'none';
+        }, { once: true });
       }
     }
+  });
+</script>
 
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text)
-        .then(() => alert("Link copied to clipboard!"))
-        .catch((err) => {
-          alert("Failed to copy link.");
-          console.error("Copy error:", err);
-        });
-    }
-  </script>
 </body>
 </html>
