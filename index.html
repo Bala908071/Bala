@@ -1,72 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Secure Proxy Browser</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Safe Redirect Link Generator</title>
   <style>
-    html, body {
-      margin: 0; padding: 0; height: 100%;
+    body {
       font-family: sans-serif;
-      display: flex; flex-direction: column;
+      padding: 20px;
+      background: #f8f9fa;
     }
-    .bar {
+    input, button {
       padding: 10px;
-      background: #f0f0f0;
-      display: flex;
-      gap: 10px;
-    }
-    input {
-      flex: 1;
-      padding: 12px;
       font-size: 16px;
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 6px;
       border: 1px solid #ccc;
-      border-radius: 4px;
+      box-sizing: border-box;
     }
     button {
-      padding: 12px 16px;
-      font-size: 16px;
-      background: #007bff;
+      background-color: #007bff;
       color: white;
       border: none;
-      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .output {
+      margin-top: 20px;
+      word-break: break-all;
+      background: #fff;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+    .copy-btn {
+      background-color: #28a745;
+      margin-top: 10px;
+    }
+    .copy-btn:hover {
+      background-color: #218838;
     }
     iframe {
-      flex: 1;
-      width: 100%;
-      border: none;
+      display: none; /* Hide iframe for silent redirect */
     }
   </style>
 </head>
 <body>
+  <h2>Generate Safe Redirect Link</h2>
+  <input type="text" id="url" placeholder="Enter full URL (e.g., https://example.com)">
+  <button onclick="generate()">Generate Redirect Link</button>
+  <div class="output" id="result"></div>
+  <div class="error" id="error"></div>
+  <iframe id="redirectFrame"></iframe>
 
-<div class="bar">
-  <input type="text" id="urlInput" placeholder="https://example.com">
-  <button onclick="load()">Go</button>
-</div>
+  <script>
+    const WORKER_URL = "https://empty-silence-1b09.localhitsf.workers.dev"; // Update if different
 
-<iframe id="viewer" src="about:blank"></iframe>
+    function generate() {
+      const resultDiv = document.getElementById("result");
+      const errorDiv = document.getElementById("error");
+      const redirectFrame = document.getElementById("redirectFrame");
+      resultDiv.innerHTML = "";
+      errorDiv.innerHTML = "";
+      redirectFrame.src = "";
 
-<script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
-<script>
-  const secretKey = "MySecretKey123"; // Must match PHP key
+      const input = document.getElementById("url").value.trim();
+      if (!input) {
+        errorDiv.textContent = "Please enter a URL.";
+        return;
+      }
 
-  function load() {
-    const url = document.getElementById("urlInput").value.trim();
-    if (!/^https?:\/\//.test(url)) {
-      alert("Enter a valid full URL");
-      return;
+      if (!/^https?:\/\/.+/i.test(input)) {
+        errorDiv.textContent = "Please enter a valid URL starting with http:// or https://";
+        return;
+      }
+
+      try {
+        const encoded = btoa(input);
+        const redirectUrl = `${WORKER_URL}/?url=${encodeURIComponent(encoded)}`;
+        console.log("Generated URL:", redirectUrl); // Debug
+
+        // Silent redirect via iframe
+        redirectFrame.src = redirectUrl;
+
+        // Fallback for browsers (visible link)
+        resultDiv.innerHTML = `
+          <strong>Redirect Link (Auto-redirecting...):</strong><br>
+          <a href="${redirectUrl}" target="_blank">${redirectUrl}</a><br>
+          <button class="copy-btn" onclick="copyToClipboard('${redirectUrl}')">Copy Link</button>
+        `;
+
+        // Optional: Direct window redirect (uncomment if iframe doesn't work)
+        // setTimeout(() => { window.location.href = redirectUrl; }, 500);
+      } catch (error) {
+        errorDiv.textContent = "Error encoding URL: " + error.message;
+        console.error("Encoding error:", error);
+      }
     }
 
-    const key = CryptoJS.enc.Utf8.parse(secretKey);
-    const encrypted = CryptoJS.AES.encrypt(url, key, {
-      mode: CryptoJS.mode.ECB,
-      padding: CryptoJS.pad.Pkcs7
-    });
-    const base64 = CryptoJS.enc.Base64.stringify(encrypted.ciphertext);
-    document.getElementById("viewer").src = `relay.php?q=${encodeURIComponent(base64)}`;
-  }
-</script>
-
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text)
+        .then(() => alert("Link copied to clipboard!"))
+        .catch((err) => {
+          alert("Failed to copy link.");
+          console.error("Copy error:", err);
+        });
+    }
+  </script>
 </body>
 </html>
