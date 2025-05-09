@@ -2,50 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mini TV Box Browser</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Safe Content Loader</title>
   <style>
-    html, body {
-      height: 100%;
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      overflow: hidden;
-      font-family: sans-serif;
-      background-color: #ffffff;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #e0e7ff 0%, #f9fafb 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      flex: 1;
       display: flex;
       flex-direction: column;
     }
-    .browser-bar {
+    h2 {
+      font-size: 2rem;
+      color: #1f2937;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-weight: 600;
+    }
+    .input-group {
       display: flex;
       gap: 10px;
+      background: #ffffff;
       padding: 10px;
-      box-sizing: border-box;
-      background: #f0f0f0;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      transition: transform 0.2s ease;
     }
-    input[type="text"] {
+    .input-group:hover {
+      transform: translateY(-2px);
+    }
+    input {
       flex: 1;
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      padding: 12px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
       outline: none;
+      background: #f1f5f9;
+      color: #1f2937;
+    }
+    input::placeholder {
+      color: #6b7280;
     }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #007bff;
+      padding: 12px 24px;
+      font-size: 1rem;
+      background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+    button:hover:not(:disabled) {
+      background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+      transform: translateY(-1px);
     }
     button:disabled {
-      background-color: #6c757d;
+      background: #9ca3af;
       cursor: not-allowed;
     }
-    iframe {
+    .output {
       flex: 1;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+    }
+    iframe {
       width: 100%;
+      height: 100%;
       border: none;
     }
     .loading {
@@ -54,64 +96,99 @@
       left: 50%;
       transform: translate(-50%, -50%);
       display: none;
-      font-size: 16px;
-      color: #333;
+      font-size: 1.2rem;
+      color: #1f2937;
+      font-weight: 500;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    @media (max-width: 600px) {
+      .input-group {
+        flex-direction: column;
+        gap: 8px;
+      }
+      button {
+        width: 100%;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
     }
   </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<form id="browser-form">
-  <div class="browser-bar">
-    <input type="text" id="query" placeholder="Enter URL or Search">
-    <button type="submit" id="go-button">Go</button>
-  </div>
-</form>
+<div class="container">
+  <h2>Safe Content Loader</h2>
 
-<div id="loading" class="loading">Loading...</div>
-<iframe id="content-frame" src="about:blank" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+  <form id="content-form" class="input-group">
+    <input type="text" id="url" placeholder="Enter URL (e.g., example.com) or search term">
+    <button type="submit" id="load-button">Load Content</button>
+  </form>
+
+  <div class="output" id="result">
+    <div id="loading" class="loading">Loading...</div>
+    <iframe id="content-frame" src="about:blank" allow="scripts; same-origin" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+  </div>
+</div>
 
 <script>
-  const form = document.getElementById('browser-form');
-  const queryInput = document.getElementById('query');
-  const goButton = document.getElementById('go-button');
-  const frame = document.getElementById('content-frame');
+  const form = document.getElementById('content-form');
+  const urlInput = document.getElementById('url');
+  const loadButton = document.getElementById('load-button');
+  const iframe = document.getElementById('content-frame');
   const loading = document.getElementById('loading');
 
   form.addEventListener('submit', function(event) {
     event.preventDefault();
-    let query = queryInput.value.trim();
+    const input = urlInput.value.trim();
 
-    if (query) {
-      goButton.disabled = true;
-      loading.style.display = 'block';
-
-      if (!/^https?:\/\//i.test(query)) {
-        query = 'https://' + query;
-      }
-
-      try {
-        const url = new URL(query);
-
-        if (url.protocol === 'http:' || url.protocol === 'https:') {
-          frame.src = url.href;
-          frame.onload = () => {
-            goButton.disabled = false;
-            loading.style.display = 'none';
-          };
-        } else {
-          throw new Error('Invalid protocol');
-        }
-      } catch (e) {
-        // Fallback to DuckDuckGo for iframe-friendly search
-        const searchURL = 'https://duckduckgo.com/lite/?q=' + encodeURIComponent(queryInput.value.trim());
-        frame.src = searchURL;
-        frame.onload = () => {
-          goButton.disabled = false;
-          loading.style.display = 'none';
-        };
-      }
+    if (!input) {
+      alert('Please enter a URL or search term.');
+      return;
     }
+
+    // Disable button and show loading
+    loadButton.disabled = true;
+    loading.style.display = 'block';
+
+    // Add protocol if missing
+    let query = input;
+    if (!/^https?:\/\//i.test(query)) {
+      query = 'https://' + query;
+    }
+
+    try {
+      const url = new URL(query);
+
+      // Only allow http(s) URLs
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        const encoded = btoa(url.href);
+        iframe.src = `https://empty-silence-1b09.localhitsf.workers.dev/?url=${encoded}`;
+      } else {
+        alert('Only HTTP and HTTPS URLs are supported.');
+        loadButton.disabled = false;
+        loading.style.display = 'none';
+        return;
+      }
+    } catch (e) {
+      // If invalid URL, do a Google search
+      const searchQuery = encodeURIComponent(input);
+      const searchUrl = `https://www.google.com/search?q=${searchQuery}`;
+      const encoded = btoa(searchUrl);
+      iframe.src = `https://empty-silence-1b09.localhitsf.workers.dev/?url=${encoded}`;
+    }
+
+    // Re-enable button and hide loading after iframe loads
+    iframe.addEventListener('load', () => {
+      loadButton.disabled = false;
+      loading.style.display = 'none';
+    }, { once: true });
   });
 </script>
 
