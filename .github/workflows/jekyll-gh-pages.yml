@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Safe Content Loader</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #e0e7ff 0%, #f9fafb 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    h2 {
+      font-size: 2rem;
+      color: #1f2937;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-weight: 600;
+    }
+    .input-group {
+      display: flex;
+      gap: 10px;
+      background: #ffffff;
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      transition: transform 0.2s ease;
+    }
+    .input-group:hover {
+      transform: translateY(-2px);
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 8px;
+      outline: none;
+      background: #f1f5f9;
+      color: #1f2937;
+    }
+    input::placeholder {
+      color: #6b7280;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 1.2rem;
+      background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+    button:hover:not(:disabled) {
+      background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .output {
+      flex: 1;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      min-height: 80vh; /* Increased for TV-like size */
+      width: 100%; /* Full width of container */
+      max-width: 100%; /* Ensure no width restriction */
+      aspect-ratio: 16 / 9; /* Optional: TV-like aspect ratio */
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      font-size: 1.2rem;
+      color: #1f2937;
+      font-weight: 500;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    @media (max-width: 600px) {
+      .input-group {
+        flex-direction: column;
+        gap: 8px;
+      }
+      button {
+        width: 100%;
+      }
+      h2 {
+        font-size: 1.5rem;
+      }
+      .output {
+        min-height: 50vh; /* Slightly smaller on mobile for usability */
+        aspect-ratio: auto; /* Remove aspect ratio on small screens */
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Safe Content Loader</h2>
+
+  <form id="content-form" class="input-group">
+    <input type="text" id="url" placeholder="Enter URL (e.g., example.com) or search term">
+    <button type="submit" id="load-button">Load Content</button>
+  </form>
+
+  <div class="output" id="result">
+    <div id="loading" class="loading">Loading...</div>
+    <iframe id="content-frame" src="about:blank" allow="scripts; same-origin" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+  </div>
+</div>
+
+<script>
+  // Generate UUID for one-time token
+  function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  const form = document.getElementById('content-form');
+  const urlInput = document.getElementById('url');
+  const loadButton = document.getElementById('load-button');
+  const iframe = document.getElementById('content-frame');
+  const loading = document.getElementById('loading');
+  const workerBaseUrl = 'https://empty-silence-1b09.localhitsf.workers.dev';
+
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    const input = urlInput.value.trim();
+
+    if (!input) {
+      alert('Please enter a URL or search term.');
+      return;
+    }
+
+    // Disable button and show loading
+    loadButton.disabled = true;
+    loading.style.display = 'block';
+
+    // Add protocol if missing
+    let query = input;
+    if (!/^https?:\/\//i.test(query)) {
+      query = 'https://' + query;
+    }
+
+    let targetUrl;
+    try {
+      targetUrl = new URL(query);
+
+      // Only allow http(s) URLs
+      if (targetUrl.protocol !== 'http:' && targetUrl.protocol !== 'https:') {
+        alert('Only HTTP and HTTPS URLs are supported.');
+        loadButton.disabled = false;
+        loading.style.display = 'none';
+        return;
+      }
+    } catch (e) {
+      // Invalid URL: Load Google search directly
+     其中的searchQuery = encodeURIComponent(input);
+      const searchUrl = `https://www.google.com/search?q=${searchQuery}`;
+      console.log('Loading search URL:', searchUrl);
+      iframe.src = searchUrl;
+      handleIframeEvents(targetUrl, searchUrl);
+      return;
+    }
+
+    // Try token-based approach
+    console.log('Attempt 1: Token-based');
+    const token = generateUUID();
+    console.log('Generated token:', token);
+    console.log('Target URL:', targetUrl.href);
+
+    try {
+      const registerResponse = await fetch(`${workerBaseUrl}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, url: targetUrl.href, expires: Date.now() + 60000 })
+      });
+
+      if (registerResponse.ok) {
+        const workerUrl = `${workerBaseUrl}/?token=${encodeURIComponent(token)}`;
+        console.log('Loading token URL:', workerUrl);
+        iframe.src = workerUrl;
+        handleIframeEvents(targetUrl, workerUrl);
+        return;
+      } else {
+        console.warn('Token registration failed:', registerResponse.status, await registerResponse.text());
+      }
+    } catch (e) {
+      console.warn('Token registration error:', e);
+    }
+
+    // Fallback 1: Raw ?url=
+    console.log('Attempt 2: Raw URL');
+    let encoded = encodeURIComponent(targetUrl.href);
+    let workerUrl = `${workerBaseUrl}/?url=${encoded}`;
+    console.log('Loading raw URL:', workerUrl);
+    iframe.src = workerUrl;
+
+    // Fallback 2: Base64 ?url= after delay
+    setTimeout(() => {
+      try {
+        if (iframe.contentDocument?.body.textContent.includes('Missing ?url=') || 
+            iframe.contentDocument?.body.textContent.includes('Failed to load content')) {
+          console.log('Attempt 3: Base64 URL');
+          encoded = encodeURIComponent(btoa(targetUrl.href));
+          workerUrl = `${workerBaseUrl}/?url=${encoded}`;
+          console.log('Loading base64 URL:', workerUrl);
+          iframe.src = workerUrl;
+        }
+      } catch (e) {
+        console.warn('Cannot check iframe content:', e);
+      }
+    }, 2000);
+
+    // Fallback 3: Direct loading after delay
+    setTimeout(() => {
+      try {
+        if (iframe.contentDocument?.body.textContent.includes('Missing ?url=') || 
+            iframe.contentDocument?.body.textContent.includes('Failed to load content')) {
+          console.log('Attempt 4: Direct loading');
+          console.log('Loading direct URL:', targetUrl.href);
+          iframe.src = targetUrl.href;
+        }
+      } catch (e) {
+        console.warn('Cannot check iframe content for direct fallback:', e);
+      }
+    }, 4000);
+
+    handleIframeEvents(targetUrl, workerUrl);
+  });
+
+  function handleIframeEvents(targetUrl, expectedSrc) {
+    // Handle iframe load
+    iframe.addEventListener('load', () => {
+      loadButton.disabled = false;
+      loading.style.display = 'none';
+      try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        const content = iframeDoc.body.textContent;
+        if (content.includes('Missing ?url=') || content.includes('Missing ?token=')) {
+          console.error('Iframe content:', content);
+          alert('Error: Workers endpoint rejected the request. Tried token, raw, and base64. Falling back to direct.');
+          iframe.src = targetUrl.href;
+        } else if (content.includes('Invalid or expired token')) {
+          console.error('Iframe content:', content);
+          alert('Error: Token invalid or expired. Falling back to direct loading.');
+          iframe.src = targetUrl.href;
+        } else if (content.includes('redirect') || iframeDoc.location.href !== expectedSrc) {
+          console.error('Iframe redirected to:', iframeDoc.location.href);
+          console.error('Expected:', expectedSrc);
+          alert('Error: Workers endpoint is redirecting. Falling back to direct loading.');
+          iframe.src = targetUrl.href;
+        } else if (content.includes('Failed to load content') || !content) {
+          console.error('Iframe content:', content);
+          alert('Error: Failed to прибавить content. Falling back to direct loading.');
+          iframe.src = targetUrl.href;
+        }
+      } catch (e) {
+        console.warn('Cannot access iframe content (cross-origin?):', e);
+      }
+    }, { once: true });
+
+    // Handle iframe errors
+    iframe.addEventListener('error', () => {
+      console.error('Iframe error: Failed to load content');
+      alert('Failed to load content. Workers endpoint may be down or redirecting. Falling back to direct.');
+      iframe.src = targetUrl.href;
+      loadButton.disabled = false;
+      loading.style.display = 'none';
+    }, { once: true });
+  }
+</script>
+
+</body>
+</html>
