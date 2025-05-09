@@ -69,7 +69,7 @@
 </form>
 
 <div id="loading" class="loading">Loading...</div>
-<iframe id="content-frame" src="about:blank" allow="scripts; same-origin" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+<iframe id="content-frame" src="about:blank" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
 
 <script>
   const form = document.getElementById('browser-form');
@@ -83,11 +83,9 @@
     let query = queryInput.value.trim();
 
     if (query) {
-      // Disable button and show loading
       goButton.disabled = true;
       loading.style.display = 'block';
 
-      // Add protocol if missing
       if (!/^https?:\/\//i.test(query)) {
         query = 'https://' + query;
       }
@@ -95,27 +93,23 @@
       try {
         const url = new URL(query);
 
-        // Only allow http(s) URLs to be loaded
         if (url.protocol === 'http:' || url.protocol === 'https:') {
-          // Update iframe source
           frame.src = url.href;
-          // Re-enable button and hide loading after iframe loads
-          frame.addEventListener('load', () => {
+          frame.onload = () => {
             goButton.disabled = false;
             loading.style.display = 'none';
-          }, { once: true });
+          };
         } else {
-          alert('Only HTTP and HTTPS URLs are supported.');
-          goButton.disabled = false;
-          loading.style.display = 'none';
+          throw new Error('Invalid protocol');
         }
       } catch (e) {
-        // If invalid URL, do a Google search
-        frame.src = 'https://www.google.com/search?q=' + encodeURIComponent(queryInput.value.trim());
-        frame.addEventListener('load', () => {
+        // Fallback to DuckDuckGo for iframe-friendly search
+        const searchURL = 'https://duckduckgo.com/lite/?q=' + encodeURIComponent(queryInput.value.trim());
+        frame.src = searchURL;
+        frame.onload = () => {
           goButton.disabled = false;
           loading.style.display = 'none';
-        }, { once: true });
+        };
       }
     }
   });
